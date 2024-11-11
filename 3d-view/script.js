@@ -41,6 +41,46 @@ function initToolbar() {
   document.getElementById('close-menu').addEventListener('click', toggleMenu);
 }
 
+function enableTouchPanning() {
+    renderer.domElement.addEventListener('touchstart', onTouchStartMoveMode, false);
+    renderer.domElement.addEventListener('touchmove', onTouchMoveMoveMode, false);
+    renderer.domElement.addEventListener('touchend', onTouchEndMoveMode, false);
+}
+
+function disableTouchPanning() {
+    renderer.domElement.removeEventListener('touchstart', onTouchStartMoveMode, false);
+    renderer.domElement.removeEventListener('touchmove', onTouchMoveMoveMode, false);
+    renderer.domElement.removeEventListener('touchend', onTouchEndMoveMode, false);
+}
+
+function onTouchStartMoveMode(event) {
+    if (currentMode === 'move' && event.touches.length === 1) {
+        isDragging = true;
+        previousMousePosition = {
+            x: event.touches[0].clientX,
+            y: event.touches[0].clientY
+        };
+    }
+}
+
+function onTouchMoveMoveMode(event) {
+    if (currentMode === 'move' && isDragging && event.touches.length === 1) {
+        const deltaX = event.touches[0].clientX - previousMousePosition.x;
+        const deltaY = event.touches[0].clientY - previousMousePosition.y;
+
+        // Adjust camera position based on delta (tweak sensitivity as needed)
+        camera.position.x -= deltaX * 0.05;
+        camera.position.z += deltaY * 0.05;
+
+        previousMousePosition.x = event.touches[0].clientX;
+        previousMousePosition.y = event.touches[0].clientY;
+    }
+}
+
+function onTouchEndMoveMode() {
+    isDragging = false;
+}
+
 function setMode(mode) {
     currentMode = mode;
 
@@ -50,6 +90,7 @@ function setMode(mode) {
     } else {
         disableTouchPanning();
     }
+
     // Update button states
     modes.forEach(m => {
         const button = document.getElementById(`${m}-mode`);
@@ -180,9 +221,6 @@ function init() {
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('resize', onWindowResize);
   window.addEventListener('keydown', onRotateKeyPress);
-  window.addEventListener('click', onLeftClick);
-window.addEventListener('touchend', onLeftClick);
-
 
   // Prevent context menu from appearing
   window.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -190,7 +228,6 @@ window.addEventListener('touchend', onLeftClick);
   renderer.setAnimationLoop(render);
     initToolbar();
     setMode('place'); // Set initial mod
-    
 }
 
 function onWindowResize() {
@@ -299,60 +336,57 @@ function onMouseUp() {
 }
 
 function onLeftClick(event) {
-    let touchMode = false;
-    let clientX, clientY;
+  const mouse = getRelativeMouse(event);
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
 
-    // Detect if it's a touch event
-    if (event.type === 'touchend') {
-        touchMode = true;
-        clientX = event.changedTouches[0].clientX;
-        clientY = event.changedTouches[0].clientY;
-    } else if (event.type === 'click') {
-        clientX = event.clientX;
-        clientY = event.clientY;
-    } else {
-        return;
-    }
+  switch (currentMode) {
+      case 'place':
+          // Handle placing objects
+          if (!ghostModel) return;
+          const placeIntersects = raycaster.intersectObjects([baseplate]);
+          if (placeIntersects.length > 0) {
+              createPlant(document.getElementById('plantSelect').value, placeIntersects[0].point);
+          }
+          break;
 
-    const mouse = new THREE.Vector2(
-        (clientX / window.innerWidth) * 2 - 1,
-        -(clientY / window.innerHeight) * 2 + 1
-    );
+      case 'delete':
+          // Handle deletion
+          const meshesToTest = [];
+          placedObjects.forEach(object => {
+              object.traverse((child) => {
+                  if (child.isMesh) {
+                      meshesToTest.push(child);
+                  }
+              });
+          });
 
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
+          const deleteIntersects = raycaster.intersectObjects(meshesToTest, false);
+          if (deleteIntersects.length > 0) {
+              let objectToDelete = deleteIntersects[0].object;
+              
+              // Find the root object (the one in placedObjects array)
+              while (objectToDelete.parent && !placedObjects.includes(objectToDelete)) {
+                  objectToDelete = objectToDelete.parent;
+              }
 
-    switch (currentMode) {
-        case 'place':
-            // Handle placing objects
-            if (!ghostModel) return;
-            const placeIntersects = raycaster.intersectObjects([baseplate]);
-            if (placeIntersects.length > 0) {
-                createPlant(document.getElementById('plantSelect').value, placeIntersects[0].point);
-            }
-            break;
+              if (placedObjects.includes(objectToDelete)) {
+                  const objectIndex = placedObjects.indexOf(objectToDelete);
+                  scene.remove(objectToDelete);
+                  placedObjects.splice(objectIndex, 1);
+              }
+          }
+          break;
 
-        case 'delete':
-            // Handle deletion
-            const meshesToTest = placedObjects.flatMap(obj => obj.children.filter(child => child.isMesh));
-            const deleteIntersects = raycaster.intersectObjects(meshesToTest, false);
-            if (deleteIntersects.length > 0) {
-                let objectToDelete = deleteIntersects[0].object;
-                
-                while (objectToDelete.parent && !placedObjects.includes(objectToDelete)) {
-                    objectToDelete = objectToDelete.parent;
-                }
+      case 'move':
+          // This is handled by OrbitControls pan
+          break;
 
-                if (placedObjects.includes(objectToDelete)) {
-                    const objectIndex = placedObjects.indexOf(objectToDelete);
-                    scene.remove(objectToDelete);
-                    placedObjects.splice(objectIndex, 1);
-                }
-            }
-            break;
-    }
+      case 'rotate3d':
+          // This is handled by OrbitControls rotate
+          break;
+  }
 }
-
 
 // function onRightClick(event) {
 //   if (currentMode !== 'delete') return;
@@ -407,43 +441,6 @@ loader.load(modelInfo.path, (gltf) => {
   placedObjects.push(plant);
 });
 }
-function enableTouchPanning() {
-    renderer.domElement.addEventListener('touchstart', onTouchStartMoveMode, false);
-    renderer.domElement.addEventListener('touchmove', onTouchMoveMoveMode, false);
-    renderer.domElement.addEventListener('touchend', onTouchEndMoveMode, false);
-}
-
-function disableTouchPanning() {
-    renderer.domElement.removeEventListener('touchstart', onTouchStartMoveMode, false);
-    renderer.domElement.removeEventListener('touchmove', onTouchMoveMoveMode, false);
-    renderer.domElement.removeEventListener('touchend', onTouchEndMoveMode, false);
-}
-
-function onTouchStartMoveMode(event) {
-    if (currentMode === 'move' && event.touches.length === 1) {
-        isDragging = true;
-        previousMousePosition.x = event.touches[0].clientX;
-        previousMousePosition.y = event.touches[0].clientY;
-    }
-}
-
-function onTouchMoveMoveMode(event) {
-    if (currentMode === 'move' && isDragging && event.touches.length === 1) {
-        const deltaX = event.touches[0].clientX - previousMousePosition.x;
-        const deltaY = event.touches[0].clientY - previousMousePosition.y;
-
-        camera.position.x -= deltaX * 0.01;  // Adjust sensitivity as needed
-        camera.position.z += deltaY * 0.01;
-
-        previousMousePosition.x = event.touches[0].clientX;
-        previousMousePosition.y = event.touches[0].clientY;
-    }
-}
-
-function onTouchEndMoveMode() {
-    isDragging = false;
-}
-
 
 function toggleViewMode() {
 isPlantingMode = !isPlantingMode;
