@@ -61,10 +61,14 @@
     <script type="module" src="script.js"></script>
     <script>
         block = document.getElementById("onlyDesktop")
+        tb = document.getElementsByClassName("toolbar")
+
         if(typeof window.orientation !== "undefined"){
             block.style = "opacity: 1;z-index: 9999;display:block;width: 100vw;height:100vh;"
+            tb.style = "display:none;"
         }else{
             block.style = "z-index:-100000;display:none;"
+            tb.style = "display:flex;"
         }
     </script>
 </body>
