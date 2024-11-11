@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <div id="onlyDesktop">
+        <span style="font-size: 4vw; margin-top: 15vh;">Aby używać planera ogrodów, otwórz go na komputerze.</span>
+    </div>
     <div id="planner"></div>
 
     <div class="toolbar">
@@ -56,5 +59,13 @@
     </div>
 
     <script type="module" src="script.js"></script>
+    <script>
+        block = document.getElementById("onlyDesktop")
+        if(typeof window.orientation !== "undefined"){
+            block.style = "opacity: 1;z-index: 9999;display:block;width: 100vw;height:100vh;"
+        }else{
+            block.style = "z-index:-100000;display:none;"
+        }
+    </script>
 </body>
 </html>
