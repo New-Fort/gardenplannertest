@@ -18,7 +18,8 @@ const modelsData = {
   oak_tree: { path: '../models/oak_tree/scene.gltf', displayName: 'Oak Tree', realHeight: 15 },
   tall_bush: { path: '../models/tall_bush/scene.gltf', displayName: 'Tall Bush', realHeight: 2 },
   thuya: { path: '../models/thuya/scene.gltf', displayName: 'Tuja (Arborvitae)', realHeight: 3.5 },
-  buxus: { path: '../models/buxus/scene.gltf', displayName: 'Bukszpan (Buxus)', realHeight: 1 }
+  buxus: { path: '../models/buxus/scene.gltf', displayName: 'Bukszpan (Buxus)', realHeight: 1 },
+  bench: { path: '../models/bench/scene.gltf', displayName: 'Ławka (Bench)', realHeight: 0.9 }
 };
 
 let plannerContainer;
@@ -43,6 +44,12 @@ function initToolbar() {
 function setMode(mode) {
     currentMode = mode;
 
+    // Enable touch panning for move mode
+    if (mode === 'move') {
+        enableTouchPanning();
+    } else {
+        disableTouchPanning();
+    }
     // Update button states
     modes.forEach(m => {
         const button = document.getElementById(`${m}-mode`);
@@ -173,6 +180,9 @@ function init() {
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('resize', onWindowResize);
   window.addEventListener('keydown', onRotateKeyPress);
+  window.addEventListener('click', onLeftClick);
+window.addEventListener('touchend', onLeftClick);
+
 
   // Prevent context menu from appearing
   window.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -180,6 +190,7 @@ function init() {
   renderer.setAnimationLoop(render);
     initToolbar();
     setMode('place'); // Set initial mod
+    
 }
 
 function onWindowResize() {
@@ -288,57 +299,60 @@ function onMouseUp() {
 }
 
 function onLeftClick(event) {
-  const mouse = getRelativeMouse(event);
-  const raycaster = new THREE.Raycaster();
-  raycaster.setFromCamera(mouse, camera);
+    let touchMode = false;
+    let clientX, clientY;
 
-  switch (currentMode) {
-      case 'place':
-          // Handle placing objects
-          if (!ghostModel) return;
-          const placeIntersects = raycaster.intersectObjects([baseplate]);
-          if (placeIntersects.length > 0) {
-              createPlant(document.getElementById('plantSelect').value, placeIntersects[0].point);
-          }
-          break;
+    // Detect if it's a touch event
+    if (event.type === 'touchend') {
+        touchMode = true;
+        clientX = event.changedTouches[0].clientX;
+        clientY = event.changedTouches[0].clientY;
+    } else if (event.type === 'click') {
+        clientX = event.clientX;
+        clientY = event.clientY;
+    } else {
+        return;
+    }
 
-      case 'delete':
-          // Handle deletion
-          const meshesToTest = [];
-          placedObjects.forEach(object => {
-              object.traverse((child) => {
-                  if (child.isMesh) {
-                      meshesToTest.push(child);
-                  }
-              });
-          });
+    const mouse = new THREE.Vector2(
+        (clientX / window.innerWidth) * 2 - 1,
+        -(clientY / window.innerHeight) * 2 + 1
+    );
 
-          const deleteIntersects = raycaster.intersectObjects(meshesToTest, false);
-          if (deleteIntersects.length > 0) {
-              let objectToDelete = deleteIntersects[0].object;
-              
-              // Find the root object (the one in placedObjects array)
-              while (objectToDelete.parent && !placedObjects.includes(objectToDelete)) {
-                  objectToDelete = objectToDelete.parent;
-              }
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, camera);
 
-              if (placedObjects.includes(objectToDelete)) {
-                  const objectIndex = placedObjects.indexOf(objectToDelete);
-                  scene.remove(objectToDelete);
-                  placedObjects.splice(objectIndex, 1);
-              }
-          }
-          break;
+    switch (currentMode) {
+        case 'place':
+            // Handle placing objects
+            if (!ghostModel) return;
+            const placeIntersects = raycaster.intersectObjects([baseplate]);
+            if (placeIntersects.length > 0) {
+                createPlant(document.getElementById('plantSelect').value, placeIntersects[0].point);
+            }
+            break;
 
-      case 'move':
-          // This is handled by OrbitControls pan
-          break;
+        case 'delete':
+            // Handle deletion
+            const meshesToTest = placedObjects.flatMap(obj => obj.children.filter(child => child.isMesh));
+            const deleteIntersects = raycaster.intersectObjects(meshesToTest, false);
+            if (deleteIntersects.length > 0) {
+                let objectToDelete = deleteIntersects[0].object;
+                
+                while (objectToDelete.parent && !placedObjects.includes(objectToDelete)) {
+                    objectToDelete = objectToDelete.parent;
+                }
 
-      case 'rotate3d':
-          // This is handled by OrbitControls rotate
-          break;
-  }
+                if (placedObjects.includes(objectToDelete)) {
+                    const objectIndex = placedObjects.indexOf(objectToDelete);
+                    scene.remove(objectToDelete);
+                    placedObjects.splice(objectIndex, 1);
+                }
+            }
+            break;
+    }
 }
+
 
 // function onRightClick(event) {
 //   if (currentMode !== 'delete') return;
@@ -393,6 +407,43 @@ loader.load(modelInfo.path, (gltf) => {
   placedObjects.push(plant);
 });
 }
+function enableTouchPanning() {
+    renderer.domElement.addEventListener('touchstart', onTouchStartMoveMode, false);
+    renderer.domElement.addEventListener('touchmove', onTouchMoveMoveMode, false);
+    renderer.domElement.addEventListener('touchend', onTouchEndMoveMode, false);
+}
+
+function disableTouchPanning() {
+    renderer.domElement.removeEventListener('touchstart', onTouchStartMoveMode, false);
+    renderer.domElement.removeEventListener('touchmove', onTouchMoveMoveMode, false);
+    renderer.domElement.removeEventListener('touchend', onTouchEndMoveMode, false);
+}
+
+function onTouchStartMoveMode(event) {
+    if (currentMode === 'move' && event.touches.length === 1) {
+        isDragging = true;
+        previousMousePosition.x = event.touches[0].clientX;
+        previousMousePosition.y = event.touches[0].clientY;
+    }
+}
+
+function onTouchMoveMoveMode(event) {
+    if (currentMode === 'move' && isDragging && event.touches.length === 1) {
+        const deltaX = event.touches[0].clientX - previousMousePosition.x;
+        const deltaY = event.touches[0].clientY - previousMousePosition.y;
+
+        camera.position.x -= deltaX * 0.01;  // Adjust sensitivity as needed
+        camera.position.z += deltaY * 0.01;
+
+        previousMousePosition.x = event.touches[0].clientX;
+        previousMousePosition.y = event.touches[0].clientY;
+    }
+}
+
+function onTouchEndMoveMode() {
+    isDragging = false;
+}
+
 
 function toggleViewMode() {
 isPlantingMode = !isPlantingMode;
@@ -401,6 +452,7 @@ controls.enabled = !isPlantingMode;
 if (ghostModel) ghostModel.visible = isPlantingMode;
 document.getElementById('toggleView').textContent = isPlantingMode ? 'Switch to View Mode' : 'Switch to Planting Mode';
 }
+
 
 function backButtonWorkPls() {
 window.location.replace("../index.html");
