@@ -41,55 +41,8 @@ function initToolbar() {
   document.getElementById('close-menu').addEventListener('click', toggleMenu);
 }
 
-function enableTouchPanning() {
-    renderer.domElement.addEventListener('touchstart', onTouchStartMoveMode, false);
-    renderer.domElement.addEventListener('touchmove', onTouchMoveMoveMode, false);
-    renderer.domElement.addEventListener('touchend', onTouchEndMoveMode, false);
-}
-
-function disableTouchPanning() {
-    renderer.domElement.removeEventListener('touchstart', onTouchStartMoveMode, false);
-    renderer.domElement.removeEventListener('touchmove', onTouchMoveMoveMode, false);
-    renderer.domElement.removeEventListener('touchend', onTouchEndMoveMode, false);
-}
-
-function onTouchStartMoveMode(event) {
-    if (currentMode === 'move' && event.touches.length === 1) {
-        isDragging = true;
-        previousMousePosition = {
-            x: event.touches[0].clientX,
-            y: event.touches[0].clientY
-        };
-    }
-}
-
-function onTouchMoveMoveMode(event) {
-    if (currentMode === 'move' && isDragging && event.touches.length === 1) {
-        const deltaX = event.touches[0].clientX - previousMousePosition.x;
-        const deltaY = event.touches[0].clientY - previousMousePosition.y;
-
-        // Adjust camera position based on delta (tweak sensitivity as needed)
-        camera.position.x -= deltaX * 0.05;
-        camera.position.z += deltaY * 0.05;
-
-        previousMousePosition.x = event.touches[0].clientX;
-        previousMousePosition.y = event.touches[0].clientY;
-    }
-}
-
-function onTouchEndMoveMode() {
-    isDragging = false;
-}
-
 function setMode(mode) {
     currentMode = mode;
-
-    // Enable touch panning for move mode
-    if (mode === 'move') {
-        enableTouchPanning();
-    } else {
-        disableTouchPanning();
-    }
 
     // Update button states
     modes.forEach(m => {
