@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Garden Planner</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="onlyDesktop">
+        <span style="font-size: 4vw; margin-top: 15vh;">Aby używać planera ogrodów, otwórz go na komputerze.</span>
+    </div>
+    <div id="planner"></div>
+
+    <div id="dimension-popup" class="popup">
+      <div class="popup-content">
+          <h2>Set Garden Dimensions</h2>
+          <p>Please specify the width and height of your garden area in meters.</p>
+          <div class="input-group">
+              <label for="garden-width">Width:</label>
+              <input type="number" id="garden-width" min="1" step="0.5" value="20">
+          </div>
+          <div class="input-group">
+              <label for="garden-height">Height:</label>
+              <input type="number" id="garden-height" min="1" step="0.5" value="20">
+          </div>
+          <div class="button-group">
+              <button id="set-dimensions" class="primary-button">Set Dimensions</button>
+          </div>
+      </div>
+    </div>
+
+    <div class="toolbar">
+        <button id="rotate3d-mode" class="toolbar-btn" title="3D Rotation Mode">
+          <i class="fas fa-cube"></i>
+        </button>
+        <button id="move-mode" class="toolbar-btn" title="Move Mode">
+          <i class="fas fa-arrows-alt"></i>
+        </button>
+        <div class="toolbar-divider"></div>
+        <button id="place-mode" class="toolbar-btn active" title="Place Object Mode">
+          <i class="fas fa-plus-square"></i>
+        </button>
+        <button id="delete-mode" class="toolbar-btn" title="Delete Mode">
+          <i class="fas fa-trash-alt"></i>
+        </button>
+        <button id="rotate-left" class="toolbar-btn" title="Rotate Left">
+          <i class="fas fa-undo"></i>
+        </button>
+        <button id="rotate-right" class="toolbar-btn" title="Rotate Right">
+          <i class="fas fa-redo"></i>
+        </button>
+        <div class="toolbar-divider"></div>
+        <button id="menu-toggle" class="toolbar-btn" title="Menu">
+          <i class="fas fa-bars"></i>
+        </button>
+      </div>
+
+    <div id="side-menu" class="side-menu">
+        <div class="menu-header">
+            <h2>Garden Planner Menu</h2>
+            <button id="close-menu" class="close-btn">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="menu-content">
+            <select id="plantSelect">
+                <!-- <option value="oak_tree">Oak Tree</option>
+                <option value="tall_bush">Tall Bush</option>
+                <option value="thuya">Tuja (Arborvitae)</option>
+                <option value="buxus">Bukszpan (Buxus)</option>
+                <option value="bench">Ławka (Bench)</option> -->
+            </select>
+            <!-- Add more menu items as needed -->
+            <input type="file" id="importFile" accept=".json" style="display: none">
+            <button onclick="document.getElementById('importFile').click()" class="toolbar-btn" title="Import Garden Arrangement">
+                <i class="fas fa-file-import"></i>
+            </button>
+            
+            <button onclick="exportGardenArrangement()" id="exportFile" class="toolbar-btn" title="Export Garden Arrangement">
+              <i class="fas fa-file-export"></i>
+          </button>          
+        </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+    <script>
+        block = document.getElementById("onlyDesktop")
+        tb = document.getElementsByClassName("toolbar")
+
+        if(typeof window.orientation !== "undefined"){
+            block.style = "opacity: 1;z-index: 999999;display:block;width: 100vw;height:100vh;"
+            tb.style = "display:none;"
+        }else{
+            block.style = "z-index:-100000;display:none;"
+            tb.style = "display:flex;"
+        }
+    </script>
+</body>
+</html>
