@@ -478,6 +478,7 @@ function onLeftClick(event) {
 // function createPlant(type, position) {
 //     const modelInfo = modelsData[type];
 //     if (!modelInfo) return;
+// pleas worc
 
 //     loader.load(modelInfo.path, (gltf) => {
 //         const plant = gltf.scene;
